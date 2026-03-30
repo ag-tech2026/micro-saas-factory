@@ -2,25 +2,6 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function sendWelcomeEmail(to: string, userName: string, appName: string = 'Micro SaaS') {
-  try {
-    await resend.emails.send({
-      from: `${appName} <onboarding@resend.dev>`,
-      to,
-      subject: `Welcome to ${appName}!`,
-      html: `
-        <h1>Welcome to ${appName}, ${userName}!</h1>
-        <p>Your account has been created successfully. You now have free credits to start analyzing.</p>
-        <p>Log in to get started: <a href="${process.env.NEXT_PUBLIC_APP_URL}">${process.env.NEXT_PUBLIC_APP_URL}</a></p>
-        <p>Thanks,<br/>The ${appName} Team</p>
-      `
-    })
-  } catch (error) {
-    console.error('Failed to send welcome email:', error)
-    throw error
-  }
-}
-
 export async function sendPaymentConfirmationEmail(
   to: string,
   userName: string,

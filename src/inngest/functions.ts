@@ -10,8 +10,10 @@ import { preprocess } from "@/product/preprocess";
 import { prompt } from "@/product/prompt";
 import { outputSchema } from "@/product/schema";
 import { inngest } from "./client";
+import { sendAnalysisCompleteEmail } from "@/lib/email";
 
 const { creditsPerAnalysis } = productConfig.credits;
+const productName = process.env.NEXT_PUBLIC_APP_URL?.split('//')[1]?.split('.')[0] || 'Micro SaaS';
 
 export const processAnalysis = inngest.createFunction(
   {
@@ -68,6 +70,28 @@ export const processAnalysis = inngest.createFunction(
           .update(analysis)
           .set({ result: JSON.stringify(analysisResult), status: "complete", updatedAt: new Date() })
           .where(eq(analysis.id, analysisId));
+      });
+
+      // Send completion email (fire-and-forget)
+      await step.run("send-analysis-complete-email", async () => {
+        try {
+          const analysisRecord = await db.select().from(analysis).where(eq(analysis.id, analysisId)).limit(1);
+          if (analysisRecord.length > 0) {
+            const userId = analysisRecord[0].userId;
+            const userRecord = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+            if (userRecord.length > 0 && userRecord[0].email) {
+              await sendAnalysisCompleteEmail(
+                userRecord[0].email,
+                userRecord[0].name,
+                productName,
+                analysisId
+              );
+            }
+          }
+        } catch (emailErr) {
+          console.error('Failed to send analysis complete email (non-fatal):', emailErr);
+          // Don't throw — email failure shouldn't fail the analysis
+        }
       });
 
       return { success: true, analysisId };
